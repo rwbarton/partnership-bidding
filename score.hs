@@ -7,6 +7,7 @@ import Data.Array
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Ratio
 import System.Environment
 import System.IO
 import System.Process
@@ -190,6 +191,11 @@ topSpot ddd v scoring = if and [ c `cmp` c' /= LT | c' <- contracts ] then Just 
                     -- all of the sample deals, but there might be
                     -- some rare layout where only 1H can be made.
 
+makingProbability :: [DoubleDummyData] -> Contract -> Maybe Rational
+makingProbability _ Pass = Nothing
+makingProbability ddd (Contract l s d) = Just $
+  fromIntegral (length [ r | r <- ddd, r M.! (s, d) >= tricks l ]) % fromIntegral (length ddd)
+
 appraise :: Vulnerability -> Scoring -> (Hand, Hand) -> Contract -> Int -> IO [(Rational, Contract)]
 appraise v scoring ns c samples = do
   ddd <- mapM (doubleDummy ns) (take samples $ dealOpponents ns)
@@ -205,6 +211,11 @@ averageScore v scoring ns c samples = do
   -- This eliminates a (small?) bias towards the computer-determined
   -- spot, at the cost of doubling the computation time.
 
+
+-- A command-line front end; contains some code duplication with the
+-- above IO actions so as to reuse double dummy data
+realToDouble :: Real a => a -> Double
+realToDouble = realToFrac
 
 main :: IO ()
 main = do
@@ -232,10 +243,11 @@ main = do
   (ddd, ddd') <- splitAt samples <$> mapM (doubleDummy ns) (take (2 * samples) $ dealOpponents ns)
   let Just c' = topSpot ddd' v scoring
   putStrLn $ "Best contract: " ++ show c'
-  putStrLn $ "Your score: " ++ (printf " %6.2f" $ (realToFrac $ relativeScore ddd v scoring c c' :: Double))
+  putStrLn $ "Your score: " ++ (printf " %6.2f" $ (realToDouble $ relativeScore ddd v scoring c c'))
   putStrLn "Relative to other contracts:"
   let relativeOther = sort [ (relativeScore ddd v scoring c c', c') | c' <- contracts ]
       trimmed = better ++ [you] ++ take 10 worse
         where (better, you : worse) = span ((/= c) . snd) relativeOther
   forM_ trimmed $ \(score, c') -> do
-    printf " %6.2f %s\n" (realToFrac score :: Double) (show c' ++ if c == c' then " <--" else "")
+    let p = makingProbability ddd c'
+    printf " %6.2f %s (%s) %s\n" (realToDouble score) (show c') (maybe "----" (printf "%3.0f%%" . realToDouble . (100 *)) p) (if c == c' then " <--" else "")
