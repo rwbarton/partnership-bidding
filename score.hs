@@ -246,8 +246,9 @@ main = do
   putStrLn $ "Your score: " ++ (printf " %6.2f" $ (realToDouble $ relativeScore ddd v scoring c c'))
   putStrLn "Relative to other contracts:"
   let relativeOther = sort [ (relativeScore ddd v scoring c c', c') | c' <- contracts ]
-      trimmed = better ++ [you] ++ take 10 worse
+      trimmed = makeable better ++ [you] ++ (take 10 $ makeable worse)
         where (better, you : worse) = span ((/= c) . snd) relativeOther
+              makeable = filter ((/= (Just 0)) . makingProbability ddd . snd)
   forM_ trimmed $ \(score, c') -> do
     let p = makingProbability ddd c'
     printf " %6.2f %s (%s) %s\n" (realToDouble score) (show c') (maybe "----" (printf "%3.0f%%" . realToDouble . (100 *)) p) (if c == c' then " <--" else "")
