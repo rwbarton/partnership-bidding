@@ -50,7 +50,7 @@ readHand str = Hand $ concat $ zipWith (map . Card) (reverse suits) (map readSui
         readCard 'K' = K
         readCard 'A' = A
         readCard n = Spot $ read [n]
-        pieces = words $ map (\x -> if x == '.' then ' ' else x) str
+        pieces = lines $ map (\x -> if x == '.' then '\n' else x) str
 
 -- A lazy pseudorandom (but with fixed seed) stream of possible
 -- distributions of the opposing cards
